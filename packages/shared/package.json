@@ -1,0 +1,13 @@
+{
+  "name": "@matchplay/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./game": "./src/game.ts"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  }
+}
