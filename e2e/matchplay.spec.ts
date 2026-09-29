@@ -82,6 +82,11 @@ test('map, search and venue navigation work at desktop and phone sizes', async (
     await expect(page.getByRole('heading', { name: 'NEARBY VENUES' })).toBeVisible();
     await expect(page.locator('.map-loading')).toHaveCount(0, { timeout: 20_000 });
     await expect(page.getByRole('button', { name: 'Zoom in', exact: true })).toBeVisible();
+    await expect(page.locator('.venue-card')).toHaveCount(3);
+    const heights = await page
+      .locator('.venue-card')
+      .evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
+    expect(Math.max(...heights) - Math.min(...heights)).toBeLessThan(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -150,4 +155,84 @@ test('a new account can edit its profile, sign out and sign back in', async ({ p
   await expect(page).toHaveURL(/\/login$/);
   await login(page, 'browser-new@test.local', '/profile');
   await expect(page.getByRole('heading', { name: 'Browser Edited Player' })).toBeVisible();
+});
+
+test('all sports can be selected and created with a compatible venue', async ({ page }) => {
+  await login(page, 'janis@matchplay.local', '/games/new?venue=hanzas');
+  await expect(page.getByRole('button', { name: 'Football', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  for (const [sport, capacity] of [
+    ['Basketball', 5],
+    ['Football', 5],
+    ['Volleyball', 6],
+    ['Tennis', 1],
+  ] as const) {
+    await page.setViewportSize({ width: sport === 'Tennis' ? 390 : 1440, height: 900 });
+    await page.getByRole('button', { name: sport, exact: true }).click();
+    await expect(page.getByRole('button', { name: sport, exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByLabel('Players per team')).toHaveValue(String(capacity));
+    await expect(page.getByText(`${sport} scoring`, { exact: true })).toBeVisible();
+    const fields = await page.locator('.form-row input').evaluateAll((inputs) =>
+      inputs.map((input) => {
+        const { top, height } = input.getBoundingClientRect();
+        return { top, height };
+      }),
+    );
+    expect(Math.abs(fields[0].top - fields[1].top)).toBeLessThan(1);
+    expect(Math.abs(fields[0].height - fields[1].height)).toBeLessThan(1);
+    const venueId = await page.getByRole('combobox', { name: 'Venue', exact: true }).inputValue();
+    const venue = await (await page.request.get(`/api/venues/${venueId}`)).json();
+    expect(venue.sports).toContain(sport);
+    await page.getByLabel('Game name').fill(`Selectable ${sport} game`);
+    const response = page.waitForResponse(
+      (r) => r.url().endsWith('/api/matches') && r.request().method() === 'POST',
+    );
+    await page.getByRole('button', { name: 'CREATE GAME', exact: true }).click();
+    const saved = await (await response).json();
+    expect(saved.sport).toBe(sport);
+    expect(saved.venueId).toBe(venueId);
+    expect(saved.capacity).toBe(capacity);
+    await expect(page.getByRole('heading', { name: 'MATCH LOBBY' })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.goto('/games/new?venue=hanzas');
+  }
+});
+
+test('reduced motion keeps navigation, sport selection and profile usable', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page, 'roberts@matchplay.local', '/games/new?venue=hanzas');
+  await page.getByRole('button', { name: 'Tennis', exact: true }).click();
+  await expect(page.getByText('Tennis scoring', { exact: true })).toBeVisible();
+  expect(
+    await page.locator('main').evaluate((main) => main.getAnimations({ subtree: true }).length),
+  ).toBe(0);
+  await page.getByRole('link', { name: 'Profile', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Roberts H.' })).toBeVisible();
+  const sizes = await page.locator('.stats-grid > div').evaluateAll((cards) =>
+    cards.map((card) => ({
+      width: card.getBoundingClientRect().width,
+      height: card.getBoundingClientRect().height,
+    })),
+  );
+  expect(
+    Math.max(...sizes.map((s) => s.height)) - Math.min(...sizes.map((s) => s.height)),
+  ).toBeLessThan(1);
+  expect(
+    Math.max(...sizes.map((s) => s.width)) - Math.min(...sizes.map((s) => s.width)),
+  ).toBeLessThan(1);
+  expect(
+    await page.locator('main').evaluate((main) => main.getAnimations({ subtree: true }).length),
+  ).toBe(0);
+  await page.getByRole('button', { name: 'Edit profile' }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Close dialog' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });

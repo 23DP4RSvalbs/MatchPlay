@@ -31,6 +31,8 @@ Create a game, share its code, join a team, then assign captains. The organiser
 starts and finishes the game and controls the clock. Captains add points to their
 own team. Finished scores are locked and saved to history.
 The sample live game starts with its clock paused. Janis can resume it.
+Choose a sport before picking a venue. The form shows compatible courts and fills
+in the usual team size; you can change that size before creating the game.
 
 ## Checks
 
@@ -50,6 +52,8 @@ is missing, run `npx playwright install chromium` first.
 
 `apps/web`: React, Vite, Tailwind, Query and MapLibre. Screens and shared components
 are separate. Palette values are in `src/styles.css`.
+Motion lives in `src/motion.css` and `src/lib/useReveals.ts`. Cards enter once as
+they come into view. Animations respect the device's reduced motion setting.
 
 `apps/api`: Fastify, Better Auth, Drizzle and SQLite. The server checks team capacity,
 roles and scoring rules. WebSocket events refresh game rooms and public previews.
@@ -76,4 +80,5 @@ Useful docs: [React](https://react.dev/learn),
 [MapLibre](https://maplibre.org/maplibre-gl-js/docs/),
 [Fastify](https://fastify.dev/docs/latest/),
 [Better Auth](https://www.better-auth.com/docs),
-[Drizzle](https://orm.drizzle.team/docs/overview).
+[Drizzle](https://orm.drizzle.team/docs/overview),
+[browser animation performance](https://developer.mozilla.org/en-US/docs/Learn_web_development/Extensions/Performance/CSS#handling_animations).

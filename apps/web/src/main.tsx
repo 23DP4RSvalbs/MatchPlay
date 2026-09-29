@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { ToastProvider } from './components/Toast';
 import './styles.css';
+import './motion.css';
 const client = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 20_000, refetchOnWindowFocus: false } },
 });

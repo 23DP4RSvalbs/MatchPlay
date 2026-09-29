@@ -2,6 +2,7 @@ import { Star, ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Venue } from '@matchplay/shared/game';
 import { Clock } from './Clock';
+import { AnimatedNumber } from './AnimatedNumber';
 import { timeOnly } from '../lib/format';
 
 export function VenueCard({
@@ -56,12 +57,16 @@ export function VenueCard({
             aria-label={`View live game ${live.title}`}
           >
             <div>
-              <strong>{live.orangeScore}</strong>
+              <strong>
+                <AnimatedNumber value={live.orangeScore} />
+              </strong>
               <span className="orange">{live.orangeName.toUpperCase()}</span>
             </div>
             <span className="score-separator">:</span>
             <div>
-              <strong>{live.blueScore}</strong>
+              <strong>
+                <AnimatedNumber value={live.blueScore} />
+              </strong>
               <span className="blue">{live.blueName.toUpperCase()}</span>
             </div>
             <p>
@@ -78,12 +83,24 @@ export function VenueCard({
             <Clock match={live} compact />
           </Link>
         ) : upcoming ? (
-          <Link to={`/games/${upcoming.id}`} className="players-caption">
-            {upcoming.memberCount}/{upcoming.capacity * 2} Players joined{' '}
-            <span>(looking for players)</span>
-          </Link>
+          <div className="venue-availability">
+            <span className="availability-label">NEXT GAME</span>
+            <Link to={`/games/${upcoming.id}`} className="players-caption">
+              {upcoming.memberCount}/{upcoming.capacity * 2} Players joined{' '}
+              <span>(looking for players)</span>
+            </Link>
+            <Link className="venue-card-action" to={`/games/${upcoming.id}`}>
+              View game <ArrowUpRight size={14} />
+            </Link>
+          </div>
         ) : (
-          <p className="players-caption">Open for your next game</p>
+          <div className="venue-availability">
+            <span className="availability-label">READY TO PLAY</span>
+            <p className="players-caption">Open for your next game</p>
+            <Link className="venue-card-action" to={`/games/new?venue=${venue.id}`}>
+              Create a game <ArrowUpRight size={14} />
+            </Link>
+          </div>
         )}
       </div>
     </article>

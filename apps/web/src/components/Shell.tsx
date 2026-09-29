@@ -2,6 +2,7 @@ import { Compass, Trophy, UsersRound, UserRound, MapPin, ArrowUpRight } from 'lu
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useMe } from '../lib/api';
 import { usePublicStream } from '../lib/useStream';
+import { useReveals } from '../lib/useReveals';
 import { Avatar } from './ui';
 
 const navigation = [
@@ -12,6 +13,7 @@ const navigation = [
 ];
 export function Shell() {
   usePublicStream();
+  const motionRef = useReveals();
   const me = useMe();
   const { pathname } = useLocation();
   const activeClass = (to: string, isActive: boolean) =>
@@ -56,7 +58,7 @@ export function Shell() {
           )}
         </div>
       </header>
-      <main>
+      <main ref={motionRef}>
         <Outlet />
       </main>
       <nav className="bottom-nav" aria-label="Main navigation">

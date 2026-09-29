@@ -1,0 +1,203 @@
+:root {
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.animated-number {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+.button,
+.chip,
+.icon-button,
+.venue-card-action svg,
+.game-arrow,
+.achievement-grid svg,
+.venue-thumbnail img {
+  transition:
+    transform 240ms var(--motion-ease),
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
+}
+.form input,
+.form select,
+.form textarea {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+.form input:focus,
+.form select:focus,
+.form textarea:focus {
+  box-shadow: 0 0 0 3px #fc4c0218;
+}
+.chip.active {
+  animation: select-in 280ms var(--motion-ease);
+}
+.desktop-nav a.active svg,
+.bottom-nav a.active svg {
+  animation: nav-in 380ms var(--motion-ease);
+}
+.tabs > button {
+  position: relative;
+}
+.tabs > button.active {
+  border-color: transparent;
+}
+.tabs > button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-orange);
+  transform-origin: center;
+  animation: tab-in 260ms var(--motion-ease);
+}
+.live-label::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: live-pulse 2s ease-in-out infinite;
+}
+.dialog {
+  animation: panel-in 260ms var(--motion-ease);
+}
+.dialog::backdrop {
+  animation: fade-in 220ms ease;
+}
+.toast {
+  animation: toast-in 320ms var(--motion-ease);
+}
+.stats-grid > div,
+.achievement-grid > div,
+.member-row,
+.game-card,
+.team-card {
+  transition:
+    transform 240ms var(--motion-ease),
+    border-color 180ms ease;
+}
+.skeleton-photo,
+.skeleton-copy > div {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-copy > div {
+  animation: none;
+}
+.skeleton-photo::after,
+.skeleton-copy > div::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, #ffffff0b, transparent);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+@media (hover: hover) and (pointer: fine) {
+  .button:not(:disabled):hover,
+  .chip:not(.active):hover,
+  .icon-button:hover,
+  .venue-card:hover,
+  .game-card:hover,
+  .team-card:hover,
+  .stats-grid > div:hover,
+  .achievement-grid > div:hover {
+    transform: translateY(-3px);
+  }
+  .venue-thumbnail:hover img {
+    transform: scale(1.06);
+  }
+  .game-card:hover .game-arrow,
+  .venue-card-action:hover svg {
+    transform: translate(2px, -2px);
+  }
+  .achievement-grid > .earned:hover svg {
+    transform: rotate(-8deg) scale(1.12);
+  }
+}
+@keyframes select-in {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes nav-in {
+  0% {
+    transform: translateY(4px) scale(0.85);
+  }
+  60% {
+    transform: translateY(-2px) scale(1.08);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes tab-in {
+  from {
+    transform: scaleX(0.35);
+    opacity: 0;
+  }
+}
+@keyframes live-pulse {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .button:hover,
+  .chip:hover,
+  .icon-button:hover,
+  .venue-card:hover,
+  .game-card:hover,
+  .team-card:hover,
+  .stats-grid > div:hover,
+  .achievement-grid > div:hover,
+  .achievement-grid > .earned:hover svg,
+  .venue-thumbnail:hover img,
+  .game-card:hover .game-arrow,
+  .venue-card-action:hover svg {
+    transform: none;
+  }
+}

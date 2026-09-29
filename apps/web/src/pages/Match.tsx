@@ -17,6 +17,7 @@ import { tennisLabel, type Match as MatchType, type Member } from '@matchplay/sh
 import { api, json, useAction, useMatch, useMe } from '../lib/api';
 import { useStream } from '../lib/useStream';
 import { Avatar, Button, Dialog, Failure, PageTitle, Skeleton } from '../components/ui';
+import { AnimatedNumber } from '../components/AnimatedNumber';
 import { Clock } from '../components/Clock';
 import { schedule, shortName } from '../lib/format';
 import { useToast } from '../lib/toast-context';
@@ -124,11 +125,15 @@ function MatchRoom({ match, meId }: { match: MatchType; meId: string }) {
                       {side === 'orange' ? match.orangeName : match.blueName}
                     </span>
                     <strong data-testid={`${side}-score`}>
-                      {match.sport === 'Tennis' && match.status !== 'completed'
-                        ? tennisLabel(match.tennis, side)
-                        : side === 'orange'
-                          ? match.orangeScore
-                          : match.blueScore}
+                      <AnimatedNumber
+                        value={
+                          match.sport === 'Tennis' && match.status !== 'completed'
+                            ? tennisLabel(match.tennis, side)
+                            : side === 'orange'
+                              ? match.orangeScore
+                              : match.blueScore
+                        }
+                      />
                     </strong>
                     {match.sport === 'Tennis' && (
                       <p>

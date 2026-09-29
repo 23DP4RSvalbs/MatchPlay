@@ -19,7 +19,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={notify}>
       {children}
       {notice && (
-        <div className={`toast ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+        <div
+          key={notice.time}
+          className={`toast ${notice.kind}`}
+          role={notice.kind === 'error' ? 'alert' : 'status'}
+        >
           {notice.kind === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 size={20} />}
           <span>{notice.message}</span>
           <button aria-label="Dismiss notification" onClick={() => setNotice(null)}>

@@ -32,10 +32,13 @@ export default function CreateGame() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [venueId, setVenueId] = useState(params.get('venue') ?? '');
-  const [sport, setSport] = useState<Sport>((params.get('sport') as Sport) ?? 'Basketball');
+  const [sport, setSport] = useState<Sport | null>(() => {
+    const requested = params.get('sport');
+    return sports.find((s) => s === requested) ?? null;
+  });
   const [title, setTitle] = useState('');
   const [startsAt, setStartsAt] = useState(() => rigaLocal(new Date(Date.now() + 7_200_000)));
-  const [capacity, setCapacity] = useState(sportCapacity[sport] ?? 5);
+  const [capacity, setCapacity] = useState<number | null>(null);
   const [duration, setDuration] = useState(40);
   const [orangeName, setOrangeName] = useState('Team Orange');
   const [blueName, setBlueName] = useState('Team Blue');
@@ -43,10 +46,11 @@ export default function CreateGame() {
     (body: unknown) => api<Match>('/matches', json(body)),
     'Your game is ready. Share the code with your team.',
   );
-  const selectedVenue = venues.data?.find((v) => v.id === venueId) ?? venues.data?.[0];
-  const selectedSport = selectedVenue?.sports.includes(sport)
-    ? sport
-    : (selectedVenue?.sports[0] ?? 'Basketball');
+  const requestedVenue = venues.data?.find((v) => v.id === venueId);
+  const selectedSport = sport ?? requestedVenue?.sports[0] ?? 'Basketball';
+  const compatibleVenues = venues.data?.filter((v) => v.sports.includes(selectedSport)) ?? [];
+  const selectedVenue = compatibleVenues.find((v) => v.id === venueId) ?? compatibleVenues[0];
+  const selectedCapacity = capacity ?? sportCapacity[selectedSport];
   async function submit(event: FormEvent) {
     event.preventDefault();
     const game = await create
@@ -55,7 +59,7 @@ export default function CreateGame() {
         venueId: selectedVenue?.id,
         sport: selectedSport,
         startsAt: rigaUTC(startsAt),
-        capacity,
+        capacity: selectedCapacity,
         durationMinutes: duration,
         orangeName,
         blueName,
@@ -87,15 +91,36 @@ export default function CreateGame() {
       <form className="form create-form" onSubmit={(e) => void submit(e)}>
         <div className="form-column">
           <h2>A place to play.</h2>
-          <p className="muted">Pick your court, then bring your people.</p>
+          <p className="muted">Pick your sport and court, then bring your people.</p>
+          <fieldset className="sport-picker">
+            <legend className="field-label">SPORT</legend>
+            <div className="sport-chips">
+              {sports.map((s) => (
+                <button
+                  type="button"
+                  className={`chip ${selectedSport === s ? 'active' : ''}`}
+                  aria-pressed={selectedSport === s}
+                  key={s}
+                  onClick={() => {
+                    setSport(s);
+                    setCapacity(sportCapacity[s]);
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <label>
             Venue
             <select
               value={selectedVenue?.id ?? ''}
               onChange={(e) => setVenueId(e.target.value)}
               required
+              disabled={!compatibleVenues.length}
             >
-              {venues.data?.map((v) => (
+              {!compatibleVenues.length && <option value="">No venues for this sport</option>}
+              {compatibleVenues.map((v) => (
                 <option value={v.id} key={v.id}>
                   {v.name}
                 </option>
@@ -103,7 +128,7 @@ export default function CreateGame() {
             </select>
           </label>
           {selectedVenue && (
-            <div className="selected-venue">
+            <div className="selected-venue" key={selectedVenue.id}>
               <img src={selectedVenue.image} alt="" />
               <div>
                 <strong>{selectedVenue.name}</strong>
@@ -114,26 +139,11 @@ export default function CreateGame() {
               </div>
             </div>
           )}
-          <div>
-            <p className="field-label">SPORT</p>
-            <div className="sport-chips">
-              {sports
-                .filter((s) => selectedVenue?.sports.includes(s))
-                .map((s) => (
-                  <button
-                    type="button"
-                    className={`chip ${selectedSport === s ? 'active' : ''}`}
-                    key={s}
-                    onClick={() => {
-                      setSport(s);
-                      setCapacity(sportCapacity[s]);
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-            </div>
-          </div>
+          <p className="venue-sport-hint" role="status">
+            {selectedVenue
+              ? `Showing venues for ${selectedSport.toLowerCase()}.`
+              : `No ${selectedSport.toLowerCase()} venues available yet. Try another sport.`}
+          </p>
           <label>
             Game name
             <input
@@ -142,7 +152,7 @@ export default function CreateGame() {
               required
               minLength={3}
               maxLength={80}
-              placeholder="Midweek Hoop Session"
+              placeholder={`${selectedSport} with friends`}
             />
           </label>
           <label>
@@ -162,7 +172,7 @@ export default function CreateGame() {
               Players per team
               <input
                 type="number"
-                value={capacity}
+                value={selectedCapacity}
                 min={1}
                 max={20}
                 required
@@ -170,7 +180,9 @@ export default function CreateGame() {
               />
             </label>
             <label>
-              Clock length <span className="field-hint">minutes</span>
+              <span>
+                Clock length <span className="field-hint">(minutes)</span>
+              </span>
               <input
                 type="number"
                 value={duration}
@@ -199,7 +211,7 @@ export default function CreateGame() {
               onChange={(e) => setBlueName(e.target.value)}
             />
           </label>
-          <div className="game-rules">
+          <div className="game-rules" key={selectedSport}>
             <strong>{selectedSport} scoring</strong>
             <p>
               {selectedSport === 'Basketball'
@@ -210,7 +222,7 @@ export default function CreateGame() {
             </p>
             <p>You start as the orange captain. Assign another captain in the lobby.</p>
           </div>
-          <Button className="full" type="submit" busy={create.isPending}>
+          <Button className="full" type="submit" busy={create.isPending} disabled={!selectedVenue}>
             CREATE GAME
             <ArrowRight size={19} />
           </Button>
