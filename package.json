@@ -1,0 +1,43 @@
+{
+  "name": "matchplay",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    }
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"npm run dev -w @matchplay/api\" \"npm run dev -w @matchplay/web\"",
+    "build": "npm run build -w @matchplay/web && npm run build -w @matchplay/api",
+    "typecheck": "tsc -p apps/web/tsconfig.json && tsc -p apps/api/tsconfig.json --noEmit",
+    "lint": "eslint apps packages",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "npm run db:generate -w @matchplay/api",
+    "db:migrate": "npm run db:migrate -w @matchplay/api",
+    "db:seed": "npm run db:seed -w @matchplay/api",
+    "test": "npm run test -w @matchplay/api",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.18.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.4.0",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}
