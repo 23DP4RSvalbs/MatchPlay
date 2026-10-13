@@ -24,12 +24,22 @@ import {
   bumpVersion,
   getMatch,
   getProfile,
+  getVenueRequests,
   getVenues,
   matchSummaries,
   membership,
   person,
 } from './queries';
-import { matches, memberships, messages, scoreEvents, session, user, venues } from './schema';
+import {
+  matches,
+  memberships,
+  messages,
+  scoreEvents,
+  session,
+  user,
+  venueRequests,
+  venues,
+} from './schema';
 
 export async function createApp(
   options: { databasePath?: string; logger?: boolean; secret?: string } = {},
@@ -180,6 +190,21 @@ export async function createApp(
       'Venue not found.',
     ),
   );
+  app.post('/api/venue-requests', async (request, reply) => {
+    const input = venueSchema.parse(request.body);
+    const id = randomUUID();
+    const now = new Date();
+    db.insert(venueRequests)
+      .values({
+        ...input,
+        id,
+        latitude: Math.round(input.latitude * 1e6),
+        longitude: Math.round(input.longitude * 1e6),
+        createdAt: now,
+      })
+      .run();
+    return reply.code(201).send(requireValue(getVenueRequests(db).find((v) => v.id === id)));
+  });
   app.get('/api/matches', async (request) => {
     const query = z
       .object({ status: z.enum(['lobby', 'live', 'completed', 'mine']).optional() })
@@ -571,6 +596,52 @@ export async function createApp(
     db.update(venues).set({ active: false }).where(eq(venues.id, id)).run();
     refreshPublic();
     return { ok: true };
+  });
+  app.get('/api/admin/venue-requests', async (request) => {
+    await admin(request);
+    return getVenueRequests(db);
+  });
+  app.patch('/api/admin/venue-requests/:id', async (request) => {
+    await admin(request);
+    const id = idFrom(request);
+    const record = requireValue(
+      db.select().from(venueRequests).where(eq(venueRequests.id, id)).get(),
+      'Venue request not found.',
+    );
+    const input = z.object({ action: z.enum(['approve', 'reject']) }).parse(request.body);
+    if (record.status !== 'pending') throw new AppError(409, 'This request was already reviewed.');
+    const now = new Date();
+    if (input.action === 'approve') {
+      const venueId = randomUUID();
+      db.transaction((tx) => {
+        tx.insert(venues)
+          .values({
+            id: venueId,
+            name: record.name,
+            address: record.address,
+            latitude: record.latitude,
+            longitude: record.longitude,
+            sports: record.sports,
+            image: record.image,
+            rating: null,
+            reviewCount: 0,
+            description: record.description,
+            active: true,
+          })
+          .run();
+        tx.update(venueRequests)
+          .set({ status: 'approved', reviewedAt: now, approvedVenueId: venueId })
+          .where(eq(venueRequests.id, id))
+          .run();
+      });
+      refreshPublic();
+    } else {
+      db.update(venueRequests)
+        .set({ status: 'rejected', reviewedAt: now })
+        .where(eq(venueRequests.id, id))
+        .run();
+    }
+    return requireValue(getVenueRequests(db).find((v) => v.id === id));
   });
   app.addHook('onClose', () => {
     for (const socket of publicSubscribers) socket.close();

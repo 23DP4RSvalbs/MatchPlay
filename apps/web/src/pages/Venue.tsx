@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Star, MapPin } from 'lucide-react';
 import type { Venue as VenueType } from '@matchplay/shared/game';
-import { api } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import { day, month, timeOnly } from '../lib/format';
 import { Empty, Failure, Skeleton } from '../components/ui';
 export default function Venue() {
@@ -19,6 +19,23 @@ export default function Venue() {
         <Skeleton />
       </div>
     );
+  if (query.error)
+    if (query.error instanceof ApiError && query.error.status === 404)
+      return (
+        <div className="page">
+          <Empty
+            title="This venue is missing"
+            text="If you know the location, send it to the admin team and it can be added to the map."
+          >
+            <Link className="button primary" to="/venues/new">
+              Suggest this venue
+            </Link>
+            <Link className="button outline" to="/">
+              Back to explore
+            </Link>
+          </Empty>
+        </div>
+      );
   if (query.error)
     return (
       <div className="page">

@@ -90,6 +90,24 @@ export const venues = sqliteTable(
   },
   (table) => [index('venue_bounds_idx').on(table.active, table.latitude, table.longitude)],
 );
+export const venueRequests = sqliteTable(
+  'venue_requests',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    address: text('address').notNull(),
+    latitude: integer('latitude_e6').notNull(),
+    longitude: integer('longitude_e6').notNull(),
+    sports: text('sports', { mode: 'json' }).$type<Sport[]>().notNull(),
+    image: text('image').notNull(),
+    description: text('description').notNull().default(''),
+    status: text('status').$type<'pending' | 'approved' | 'rejected'>().notNull().default('pending'),
+    createdAt: date('created_at'),
+    reviewedAt: date('reviewed_at'),
+    approvedVenueId: text('approved_venue_id').references(() => venues.id),
+  },
+  (table) => [index('venue_request_status_idx').on(table.status, table.createdAt)],
+);
 export const matches = sqliteTable(
   'matches',
   {

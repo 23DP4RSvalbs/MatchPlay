@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { Match, MatchSummary, Person, Profile, Venue } from '@matchplay/shared';
+import type { Match, MatchSummary, Person, Profile, Venue, VenueRequest } from '@matchplay/shared';
 import type { DatabaseContext } from './database';
-import { matches, memberships, messages, user, venues } from './schema';
+import { matches, memberships, messages, user, venueRequests, venues } from './schema';
 import { requireValue } from './errors';
 
 type Db = DatabaseContext['db'];
@@ -95,6 +95,27 @@ export function getVenues(db: Db, includeInactive = false): Venue[] {
       matches: games.filter(
         (m) => m.venueId === v.id && (m.status === 'lobby' || m.status === 'live'),
       ),
+    }));
+}
+export function getVenueRequests(db: Db): VenueRequest[] {
+  return db
+    .select()
+    .from(venueRequests)
+    .orderBy(desc(venueRequests.createdAt))
+    .all()
+    .map((request) => ({
+      id: request.id,
+      name: request.name,
+      address: request.address,
+      latitude: request.latitude / 1e6,
+      longitude: request.longitude / 1e6,
+      sports: request.sports,
+      image: request.image,
+      description: request.description,
+      status: request.status,
+      approvedVenueId: request.approvedVenueId,
+      createdAt: request.createdAt.toISOString(),
+      reviewedAt: request.reviewedAt ? request.reviewedAt.toISOString() : null,
     }));
 }
 export function getProfile(db: Db, id: string): Profile {

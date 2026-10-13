@@ -155,6 +155,9 @@ export default function Explore() {
               title="No courts found here"
               text="Try another sport, clear the search or move the map."
             >
+              <Link className="button primary" to="/venues/new">
+                Suggest a venue
+              </Link>
               <Button
                 variant="outline"
                 onClick={() => {
