@@ -201,6 +201,7 @@ export async function createApp(
         latitude: Math.round(input.latitude * 1e6),
         longitude: Math.round(input.longitude * 1e6),
         createdAt: now,
+        reviewedAt: null,
       })
       .run();
     return reply.code(201).send(requireValue(getVenueRequests(db).find((v) => v.id === id)));

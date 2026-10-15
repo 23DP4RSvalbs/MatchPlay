@@ -387,6 +387,73 @@ p {
   letter-spacing: 1.4px;
   font-weight: 600;
 }
+.venue-map-popup {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  color: #f5f6fb;
+}
+.venue-map-popup img {
+  width: 94px;
+  height: 94px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.venue-map-popup strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.15;
+  margin-top: 7px;
+}
+.venue-map-popup-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
+}
+.venue-map-popup-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+.venue-map-popup-rating {
+  color: #f9c433;
+}
+.venue-map-popup-sport {
+  color: #fc4c02;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+.venue-map-popup-link {
+  color: #fc4c02;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 9px;
+}
+.map-panel .maplibregl-popup-content {
+  background: var(--color-surface) !important;
+  border: 1px solid #ffffff0d;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px #00000055;
+  padding: 9px;
+  width: min(350px, calc(100vw - 24px)) !important;
+  max-width: calc(100vw - 24px) !important;
+  overflow: hidden;
+}
+.map-panel .maplibregl-popup-tip {
+  border-top-color: var(--color-surface) !important;
+  border-bottom-color: var(--color-surface) !important;
+  border-left-color: var(--color-surface) !important;
+  border-right-color: var(--color-surface) !important;
+}
 .locate-button {
   position: absolute;
   bottom: 78px;
@@ -2134,6 +2201,10 @@ p {
   font-size: 10px;
   color: var(--color-muted);
   margin-top: 11px;
+}
+.admin-request-description {
+  margin-top: 12px;
+  line-height: 1.5;
 }
 .admin-record-actions {
   display: flex;
