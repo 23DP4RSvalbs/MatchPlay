@@ -964,6 +964,75 @@ p {
   color: var(--color-muted);
   margin-top: 6px;
 }
+.create-map-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.suggest-map-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.create-map-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+.create-map-heading strong {
+  display: block;
+  font-size: 14px;
+  margin-top: 4px;
+}
+.create-map-heading p {
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.45;
+  margin-top: 4px;
+}
+.create-map {
+  position: relative;
+  min-height: 220px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #202822;
+  border: 1px solid #ffffff09;
+}
+.create-map .place-map-canvas,
+.suggest-map .place-map-canvas {
+  position: absolute;
+  inset: 0;
+}
+.suggest-map {
+  position: relative;
+  min-height: 260px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #202822;
+  border: 1px solid #ffffff09;
+}
+.create-map-view {
+  min-height: 220px;
+}
+.place-map {
+  position: relative;
+}
+.create-map-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--color-muted);
+  background: linear-gradient(180deg, #202822, #1a1f1c);
+}
+.create-map-empty p {
+  max-width: 220px;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .game-rules {
   border-left: 2px solid var(--color-orange);
   padding-left: 17px;

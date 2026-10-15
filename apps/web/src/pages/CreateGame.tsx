@@ -5,6 +5,7 @@ import { sports, type Match, type Sport } from '@matchplay/shared/game';
 import { api, ApiError, json, useAction, useMe, useVenues } from '../lib/api';
 import { sportCapacity } from '../lib/format';
 import { Button, Failure, PageTitle, Skeleton } from '../components/ui';
+import PlaceMap from '../components/PlaceMap';
 
 const rigaLocal = (date: Date) =>
   new Intl.DateTimeFormat('sv-SE', {
@@ -167,6 +168,30 @@ export default function CreateGame() {
         </div>
         <div className="form-column">
           <h2>Make it your game.</h2>
+          <div className="create-map-card">
+            <div className="create-map-heading">
+              <div>
+                <p className="field-label">VENUE MAP</p>
+                <strong>{selectedVenue?.name ?? 'Pick a venue to preview the map'}</strong>
+                <p>{selectedVenue?.address ?? 'The map will show the exact place here.'}</p>
+              </div>
+              {selectedVenue && <MapPin size={18} />}
+            </div>
+            <div className="create-map">
+              {selectedVenue ? (
+                <PlaceMap
+                  center={[selectedVenue.longitude, selectedVenue.latitude]}
+                  value={[selectedVenue.longitude, selectedVenue.latitude]}
+                  className="create-map-view"
+                />
+              ) : (
+                <div className="create-map-empty">
+                  <MapPin size={28} />
+                  <p>Select a venue to show its location.</p>
+                </div>
+              )}
+            </div>
+          </div>
           <div className="form-row">
             <label>
               Players per team

@@ -1,7 +1,10 @@
+import type { CreateMatchInput, VenueInput } from './validation';
+
 export const sports = ['Basketball', 'Football', 'Volleyball', 'Tennis'] as const;
 export type Sport = (typeof sports)[number];
 export type MatchStatus = 'lobby' | 'live' | 'completed' | 'cancelled';
 export type TeamSide = 'orange' | 'blue';
+export type VenueRequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface Person {
   id: string;
@@ -38,6 +41,13 @@ export interface Venue {
   description: string;
   active: boolean;
   matches: MatchSummary[];
+}
+export interface VenueRequest extends VenueInput {
+  id: string;
+  status: VenueRequestStatus;
+  approvedVenueId: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
 }
 export interface TennisState {
   points: [number, number];
@@ -131,5 +141,4 @@ export function elapsed(
     (match.clockStartedAt ? Math.max(0, now - Date.parse(match.clockStartedAt)) : 0)
   );
 }
-
 export type { CreateMatchInput, VenueInput } from './validation';

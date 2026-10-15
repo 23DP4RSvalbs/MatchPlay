@@ -4,6 +4,7 @@ import { Shell } from './components/Shell';
 import { Skeleton } from './components/ui';
 const Explore = lazy(() => import('./pages/Explore'));
 const Venue = lazy(() => import('./pages/Venue'));
+const SuggestVenue = lazy(() => import('./pages/SuggestVenue'));
 const Games = lazy(() => import('./pages/Games'));
 const Match = lazy(() => import('./pages/Match'));
 const CreateGame = lazy(() => import('./pages/CreateGame'));
@@ -24,6 +25,7 @@ export default function App() {
         <Routes>
           <Route element={<Shell />}>
             <Route index element={<Explore />} />
+            <Route path="venues/new" element={<SuggestVenue />} />
             <Route path="venues/:id" element={<Venue />} />
             <Route path="games" element={<Games />} />
             <Route path="games/new" element={<CreateGame />} />
