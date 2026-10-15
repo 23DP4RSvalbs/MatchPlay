@@ -110,7 +110,7 @@ export function getVenueRequests(db: Db): VenueRequest[] {
       latitude: request.latitude / 1e6,
       longitude: request.longitude / 1e6,
       sports: request.sports,
-      image: request.image,
+      image: request.image as VenueRequest['image'],
       description: request.description,
       status: request.status,
       approvedVenueId: request.approvedVenueId,

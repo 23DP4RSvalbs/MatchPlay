@@ -103,7 +103,7 @@ export const venueRequests = sqliteTable(
     description: text('description').notNull().default(''),
     status: text('status').$type<'pending' | 'approved' | 'rejected'>().notNull().default('pending'),
     createdAt: date('created_at'),
-    reviewedAt: date('reviewed_at'),
+    reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
     approvedVenueId: text('approved_venue_id').references(() => venues.id),
   },
   (table) => [index('venue_request_status_idx').on(table.status, table.createdAt)],
