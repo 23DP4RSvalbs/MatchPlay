@@ -3,6 +3,7 @@ import {
   Map as LibreMap,
   setWorkerUrl,
   NavigationControl,
+  Popup,
   type GeoJSONSource,
   type MapMouseEvent,
 } from 'maplibre-gl';
@@ -25,16 +26,27 @@ const geojson = (venues: Venue[], selected: string | null): FeatureCollection =>
     type: 'Feature',
     properties: {
       id: v.id,
+      name: v.name,
+      image: v.image,
+      rating: v.rating === null ? '' : v.rating.toFixed(1),
+      sport: v.sports[0] ?? '',
       selected: v.id === selected,
       live: v.matches.some((m) => m.status === 'live'),
     },
     geometry: { type: 'Point', coordinates: [v.longitude, v.latitude] },
   })),
 });
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character,
+  );
 export default function VenueMap({ venues, selected, origin, onSelect, onBounds }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
   const focused = useRef<string | null>(null);
+  const popup = useRef<Popup | null>(null);
   const callbacks = useRef({ onSelect, onBounds });
   const data = useRef(geojson(venues, selected));
   const [ready, setReady] = useState(false);
@@ -135,6 +147,27 @@ export default function VenueMap({ venues, selected, origin, onSelect, onBounds 
         })[0];
         if (feature) callbacks.current.onSelect(String(feature.properties.id));
       });
+      instance.on('mouseenter', 'venue-points', (event: MapMouseEvent) => {
+        const feature = instance.queryRenderedFeatures(event.point, {
+          layers: ['venue-points'],
+        })[0];
+        if (!feature) return;
+        const name = String(feature.properties.name);
+        const image = String(feature.properties.image);
+        const rating = String(feature.properties.rating);
+        const sport = String(feature.properties.sport);
+        popup.current?.remove();
+        popup.current = new Popup({ closeButton: false, closeOnClick: false, offset: 18 })
+          .setLngLat(event.lngLat)
+          .setHTML(
+            `<div class="venue-map-popup"><img src="${escapeHtml(image)}" alt=""><div class="venue-map-popup-copy"><div class="venue-map-popup-meta"><span class="venue-map-popup-rating">★ ${escapeHtml(rating || 'New')}</span><span class="venue-map-popup-sport">${escapeHtml(sport)}</span></div><strong>${escapeHtml(name)}</strong><span class="venue-map-popup-link">View venue ↗</span></div></div>`,
+          )
+          .addTo(instance);
+      });
+      instance.on('mouseleave', 'venue-points', () => {
+        popup.current?.remove();
+        popup.current = null;
+      });
       instance.on('click', 'venue-clusters', async (event) => {
         const feature = instance.queryRenderedFeatures(event.point, {
           layers: ['venue-clusters'],
@@ -169,6 +202,8 @@ export default function VenueMap({ venues, selected, origin, onSelect, onBounds 
     });
     instance.on('idle', () => setFailed(false));
     return () => {
+      popup.current?.remove();
+      popup.current = null;
       instance.remove();
       map.current = null;
     };

@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Pencil, Search, Shield, Archive, MapPin } from 'lucide-react';
-import { sports, type Person, type Venue, type VenueInput } from '@matchplay/shared/game';
+import { Plus, Pencil, Search, Shield, Archive, MapPin, Check, X } from 'lucide-react';
+import {
+  sports,
+  type Person,
+  type Venue,
+  type VenueInput,
+  type VenueRequest,
+} from '@matchplay/shared/game';
 import { api, json, useAction } from '../lib/api';
 import { Avatar, Button, Dialog, Failure, PageTitle, Skeleton } from '../components/ui';
 
@@ -148,6 +154,11 @@ export default function Admin() {
     queryFn: () => api<Venue[]>('/admin/venues'),
     retry: false,
   });
+  const requests = useQuery({
+    queryKey: ['admin', 'venue-requests'],
+    queryFn: () => api<VenueRequest[]>('/admin/venue-requests'),
+    retry: false,
+  });
   const users = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => api<Person[]>('/admin/users'),
@@ -161,16 +172,21 @@ export default function Admin() {
     (id: string) => api(`/admin/venues/${id}`, { method: 'DELETE' }),
     'Venue retired. Match history is preserved.',
   );
-  if (venues.isPending || users.isPending)
+  const reviewRequest = useAction(
+    ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
+      api(`/admin/venue-requests/${id}`, json({ action }, 'PATCH')),
+    'Venue request reviewed.',
+  );
+  if (venues.isPending || users.isPending || requests.isPending)
     return (
       <div className="page">
         <Skeleton />
       </div>
     );
-  if (venues.error || users.error)
+  if (venues.error || users.error || requests.error)
     return (
       <div className="page">
-        <Failure error={(venues.error ?? users.error)!} />
+        <Failure error={(venues.error ?? users.error ?? requests.error)!} />
       </div>
     );
   const filteredVenues = venues.data.filter((v) =>
@@ -193,6 +209,9 @@ export default function Admin() {
           </button>
           <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
             Users
+          </button>
+          <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>
+            Requests ({requests.data.filter((request) => request.status === 'pending').length})
           </button>
         </div>
         <div className="admin-search">
@@ -241,7 +260,7 @@ export default function Admin() {
             </article>
           ))}
         </div>
-      ) : (
+      ) : tab === 'users' ? (
         <div className="admin-user-list">
           {filteredUsers.map((u) => (
             <article className="admin-user" key={u.id}>
@@ -267,9 +286,64 @@ export default function Admin() {
             </article>
           ))}
         </div>
+      ) : (
+        <div className="admin-venue-grid">
+          {requests.data
+            .filter((request) =>
+              `${request.name} ${request.address}`.toLowerCase().includes(search.toLowerCase()),
+            )
+            .map((request) => (
+              <article
+                className={`admin-venue ${request.status !== 'pending' ? 'inactive' : ''}`}
+                key={request.id}
+              >
+                <img src={request.image} alt="" loading="lazy" />
+                <div className="admin-venue-copy">
+                  <span className={`status ${request.status === 'pending' ? 'lobby' : 'completed'}`}>
+                    {request.status.toUpperCase()}
+                  </span>
+                  <h2>{request.name}</h2>
+                  <p>
+                    <MapPin size={14} />
+                    {request.address}
+                  </p>
+                  <div className="admin-sports">{request.sports.join(' · ')}</div>
+                  {request.description && <p className="admin-request-description">{request.description}</p>}
+                  {request.status === 'pending' && (
+                    <div className="admin-record-actions">
+                      <Button
+                        className="small"
+                        busy={reviewRequest.isPending}
+                        onClick={() =>
+                          void reviewRequest.mutateAsync({ id: request.id, action: 'approve' })
+                        }
+                      >
+                        <Check size={15} />
+                        Approve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="small"
+                        busy={reviewRequest.isPending}
+                        onClick={() =>
+                          void reviewRequest.mutateAsync({ id: request.id, action: 'reject' })
+                        }
+                      >
+                        <X size={15} />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+        </div>
       )}
       {!filteredVenues.length && tab === 'venues' && <p className="muted">No matching venues.</p>}
       {!filteredUsers.length && tab === 'users' && <p className="muted">No matching users.</p>}
+      {!requests.data.filter((request) =>
+        `${request.name} ${request.address}`.toLowerCase().includes(search.toLowerCase()),
+      ).length && tab === 'requests' && <p className="muted">No matching venue requests.</p>}
       {editing !== undefined && (
         <VenueEditor venue={editing} onClose={() => setEditing(undefined)} />
       )}

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, SlidersHorizontal, LocateFixed, X, MapPin } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { sports, type Venue } from '@matchplay/shared/game';
 import { useVenues } from '../lib/api';
 import { distance } from '../lib/format';
@@ -11,6 +11,7 @@ import { useToast } from '../lib/toast-context';
 const VenueMap = lazy(() => import('../components/VenueMap'));
 export default function Explore() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const q = useDeferredValue(search);
   const [sport, setSport] = useState('All');
@@ -60,7 +61,7 @@ export default function Explore() {
       ),
     [venues.data, sport, q],
   );
-  const select = useCallback((id: string) => setSelected(id), []);
+  const select = useCallback((id: string) => navigate(`/venues/${id}`), [navigate]);
   const locate = () => {
     if (!navigator.geolocation) {
       toast('Location is unavailable. Showing Riga.', 'error');
