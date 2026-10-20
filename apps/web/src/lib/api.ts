@@ -10,6 +10,16 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
+function getErrorMessage(result: unknown, fallback: string) {
+  if (!result || typeof result !== 'object') return fallback;
+  const message = 'message' in result ? String((result as { message?: unknown }).message ?? '') : '';
+  const errors = 'error' in result ? (result as { error?: unknown }).error : undefined;
+  if (typeof errors === 'string' && errors.trim()) return errors;
+  if (message.trim()) return message;
+  return fallback;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...options,
@@ -19,24 +29,47 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       ...options.headers,
     },
   });
+
   const result = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new ApiError(response.status, result.message ?? 'Could not complete this action.');
+  const message = getErrorMessage(result, 'Could not complete this action.');
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      throw new ApiError(429, 'Too many attempts. Please wait a moment and try again.');
+    }
+
+    if (response.status === 401) {
+      throw new ApiError(401, message || 'Sign in to continue.');
+    }
+
+    if (response.status === 403) {
+      throw new ApiError(403, message || 'This action is not allowed.');
+    }
+
+    throw new ApiError(response.status, message);
+  }
+
   if (result?.serverTime) result.serverOffset = Date.parse(result.serverTime) - Date.now();
   return result as T;
 }
+
 export const json = (body: unknown, method = 'POST'): RequestInit => ({
   method,
   body: JSON.stringify(body),
 });
+
 export function useMe() {
   return useQuery({
     queryKey: ['me'],
     queryFn: () => api<Person | null>('/me'),
     staleTime: 60_000,
-    retry: false,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return false;
+      return failureCount < 2;
+    },
   });
 }
+
 export function useVenues() {
   return useQuery({
     queryKey: ['venues'],
@@ -44,9 +77,11 @@ export function useVenues() {
     staleTime: 60_000,
   });
 }
+
 export function useProfile() {
   return useQuery({ queryKey: ['profile'], queryFn: () => api<Profile>('/profile'), retry: false });
 }
+
 export function useMatch(id: string) {
   return useQuery({
     queryKey: ['match', id],
@@ -55,6 +90,7 @@ export function useMatch(id: string) {
     refetchInterval: 15_000,
   });
 }
+
 export function useAction<TInput, TOutput = unknown>(
   run: (input: TInput) => Promise<TOutput>,
   success?: string,
@@ -71,6 +107,8 @@ export function useAction<TInput, TOutput = unknown>(
       );
       if (success) toast(success);
     },
-    onError: (error) => toast(error.message, 'error'),
+    onError: (error: Error) => {
+      toast(error.message || 'Something went wrong. Please try again.', 'error');
+    },
   });
 }

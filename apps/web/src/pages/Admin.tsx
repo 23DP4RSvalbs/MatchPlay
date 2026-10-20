@@ -1,9 +1,47 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Plus, Pencil, Search, Shield, Archive, MapPin } from 'lucide-react';
-import { sports, type Person, type Venue, type VenueInput } from '@matchplay/shared/game';
+import { Plus, Pencil, Search, Shield, Archive, MapPin, Check, X } from 'lucide-react';
+import { sports, type Person, type Venue, type VenueInput, type VenueRequest } from '@matchplay/shared/game';
 import { api, json, useAction } from '../lib/api';
 import { Avatar, Button, Dialog, Failure, PageTitle, Skeleton } from '../components/ui';
+
+function VenueRequestReview({ request, onClose }: { request: VenueRequest; onClose: () => void }) {
+  const review = useAction(
+    ({ action }: { action: 'approve' | 'reject' }) =>
+      api(`/admin/venue-requests/${request.id}`, json({ action }, 'PATCH')),
+    'Venue request updated.',
+  );
+
+  return (
+    <Dialog title="Review venue request" onClose={onClose}>
+      <div className="request-review-card">
+        <h3>{request.name}</h3>
+        <p>{request.address}</p>
+        <div className="admin-sports">{request.sports.join(' · ')}</div>
+        {request.description && <p className="muted">{request.description}</p>}
+        <div className="dialog-actions">
+          <Button
+            variant="quiet"
+            onClick={() =>
+              void review.mutateAsync({ action: 'reject' }).then(() => onClose())
+            }
+            busy={review.isPending}
+          >
+            <X size={15} /> Reject
+          </Button>
+          <Button
+            onClick={() =>
+              void review.mutateAsync({ action: 'approve' }).then(() => onClose())
+            }
+            busy={review.isPending}
+          >
+            <Check size={15} /> Approve
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
 
 function VenueEditor({ venue, onClose }: { venue: Venue | null; onClose: () => void }) {
   const [form, setForm] = useState<VenueInput>(() => ({
@@ -137,12 +175,15 @@ function VenueEditor({ venue, onClose }: { venue: Venue | null; onClose: () => v
   );
 }
 export default function Admin() {
-  const [tab, setTab] = useState('venues');
+  const [tab, setTab] = useState<'venues' | 'users' | 'requests'>('venues');
   const [search, setSearch] = useState('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [editing, setEditing] = useState<Venue | null | undefined>();
+  const [reviewing, setReviewing] = useState<VenueRequest | null>(null);
   const [person, setPerson] = useState<Person | null>(null);
   const [name, setName] = useState('');
   const [retiring, setRetiring] = useState<Venue | null>(null);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
   const venues = useQuery({
     queryKey: ['admin', 'venues'],
     queryFn: () => api<Venue[]>('/admin/venues'),
@@ -153,6 +194,11 @@ export default function Admin() {
     queryFn: () => api<Person[]>('/admin/users'),
     retry: false,
   });
+  const requests = useQuery({
+    queryKey: ['admin', 'venue-requests'],
+    queryFn: () => api<VenueRequest[]>('/admin/venue-requests'),
+    retry: false,
+  });
   const changeUser = useAction(
     ({ id, body }: { id: string; body: unknown }) => api(`/admin/users/${id}`, json(body, 'PATCH')),
     'User updated.',
@@ -161,53 +207,47 @@ export default function Admin() {
     (id: string) => api(`/admin/venues/${id}`, { method: 'DELETE' }),
     'Venue retired. Match history is preserved.',
   );
-  if (venues.isPending || users.isPending)
-    return (
-      <div className="page">
-        <Skeleton />
-      </div>
-    );
-  if (venues.error || users.error)
-    return (
-      <div className="page">
-        <Failure error={(venues.error ?? users.error)!} />
-      </div>
-    );
-  const filteredVenues = venues.data.filter((v) =>
-    `${v.name} ${v.address}`.toLowerCase().includes(search.toLowerCase()),
+  const filteredRequests = useMemo(
+    () =>
+      (requests.data ?? [])
+        .filter((request) =>
+          `${request.name} ${request.address} ${request.sports.join(' ')}`
+            .toLowerCase()
+            .includes(search.toLowerCase()),
+        )
+        .filter((request) => {
+          if (requestStatusFilter === 'all') return true;
+          return request.status === requestStatusFilter;
+        })
+        .sort((a, b) => {
+          if (sortBy === 'name') return a.name.localeCompare(b.name);
+          if (sortBy === 'oldest') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }),
+    [requests.data, search, requestStatusFilter, sortBy],
   );
-  const filteredUsers = users.data.filter((u) =>
-    `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  if (venues.isPending || users.isPending || requests.isPending)
+    return <div className="page"><Skeleton /></div>;
+  if (venues.error || users.error || requests.error)
+    return <div className="page"><Failure error={(venues.error ?? users.error ?? requests.error)!} /></div>;
+  const filteredVenues = venues.data.filter((v) => `${v.name} ${v.address}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredUsers = users.data.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(search.toLowerCase()));
   return (
     <div className="page admin-page">
-      <PageTitle
-        title="ADMIN PANEL"
-        back="/profile"
-        action={<Shield size={21} className="orange" />}
-      />
+      <PageTitle title="ADMIN PANEL" back="/profile" action={<Shield size={21} className="orange" />} />
       <div className="admin-toolbar">
         <div className="tabs">
-          <button className={tab === 'venues' ? 'active' : ''} onClick={() => setTab('venues')}>
-            Venues
-          </button>
-          <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>
-            Users
-          </button>
+          <button className={tab === 'venues' ? 'active' : ''} onClick={() => setTab('venues')}>Venues</button>
+          <button className={tab === 'requests' ? 'active' : ''} onClick={() => setTab('requests')}>Requests</button>
+          <button className={tab === 'users' ? 'active' : ''} onClick={() => setTab('users')}>Users</button>
         </div>
         <div className="admin-search">
           <Search size={18} />
-          <input
-            value={search}
-            aria-label="Search admin records"
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${tab}…`}
-          />
+          <input value={search} aria-label="Search admin records" onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${tab}…`} />
         </div>
         {tab === 'venues' && (
           <Button className="small" onClick={() => setEditing(null)}>
-            <Plus size={17} />
-            Add venue
+            <Plus size={17} /> Add venue
           </Button>
         )}
       </div>
@@ -241,6 +281,67 @@ export default function Admin() {
             </article>
           ))}
         </div>
+      ) : tab === 'requests' ? (
+        <div className="admin-request-list">
+          <div className="request-toolbar">
+            <div className="tabs small-tabs" role="tablist" aria-label="Venue request sort order">
+              <button className={sortBy === 'newest' ? 'active' : ''} onClick={() => setSortBy('newest')}>Newest</button>
+              <button className={sortBy === 'oldest' ? 'active' : ''} onClick={() => setSortBy('oldest')}>Oldest</button>
+              <button className={sortBy === 'name' ? 'active' : ''} onClick={() => setSortBy('name')}>Name</button>
+            </div>
+            <div className="request-status-filter">
+              <button
+                className={`status-filter ${requestStatusFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setRequestStatusFilter('all')}
+              >
+                All
+              </button>
+              <button
+                className={`status-filter ${requestStatusFilter === 'pending' ? 'active' : ''}`}
+                onClick={() => setRequestStatusFilter('pending')}
+              >
+                Pending
+              </button>
+              <button
+                className={`status-filter ${requestStatusFilter === 'approved' ? 'active' : ''}`}
+                onClick={() => setRequestStatusFilter('approved')}
+              >
+                Approved
+              </button>
+              <button
+                className={`status-filter ${requestStatusFilter === 'rejected' ? 'active' : ''}`}
+                onClick={() => setRequestStatusFilter('rejected')}
+              >
+                Rejected
+              </button>
+            </div>
+          </div>
+          {filteredRequests.length ? filteredRequests.map((request) => (
+            <article className="admin-request" key={request.id}>
+              <div>
+                <span className={`status ${request.status === 'pending' ? 'lobby' : request.status === 'approved' ? 'green' : 'completed'}`}>
+                  {request.status.toUpperCase()}
+                </span>
+                <h2>{request.name}</h2>
+                <p>{request.address}</p>
+                <div className="admin-sports">{request.sports.join(' · ')}</div>
+              </div>
+              {request.status === 'pending' ? (
+                <Button variant="outline" className="small" onClick={() => setReviewing(request)}>
+                  Review
+                </Button>
+              ) : (
+                <span className="muted request-state">Reviewed</span>
+              )}
+            </article>
+          )) : (
+            <div className="empty compact">
+              <Shield size={28} />
+              <h2>No matching venue requests</h2>
+              <p>Suggestions will appear here when players propose new courts or grounds.</p>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="admin-user-list">
           {filteredUsers.map((u) => (
@@ -268,11 +369,11 @@ export default function Admin() {
           ))}
         </div>
       )}
+      {reviewing && <VenueRequestReview request={reviewing} onClose={() => setReviewing(null)} />}
       {!filteredVenues.length && tab === 'venues' && <p className="muted">No matching venues.</p>}
       {!filteredUsers.length && tab === 'users' && <p className="muted">No matching users.</p>}
-      {editing !== undefined && (
-        <VenueEditor venue={editing} onClose={() => setEditing(undefined)} />
-      )}
+      {!filteredRequests.length && tab === 'requests' && <p className="muted">No matching requests.</p>}
+      {editing !== undefined && <VenueEditor venue={editing} onClose={() => setEditing(undefined)} />}
       {person && (
         <Dialog title="Manage user" onClose={() => setPerson(null)}>
           <form

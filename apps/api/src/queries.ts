@@ -103,20 +103,23 @@ export function getVenueRequests(db: Db): VenueRequest[] {
     .from(venueRequests)
     .orderBy(desc(venueRequests.createdAt))
     .all()
-    .map((request) => ({
-      id: request.id,
-      name: request.name,
-      address: request.address,
-      latitude: request.latitude / 1e6,
-      longitude: request.longitude / 1e6,
-      sports: request.sports,
-      image: request.image,
-      description: request.description,
-      status: request.status,
-      approvedVenueId: request.approvedVenueId,
-      createdAt: request.createdAt.toISOString(),
-      reviewedAt: request.reviewedAt ? request.reviewedAt.toISOString() : null,
-    }));
+    .map(
+      (request) =>
+        ({
+          id: request.id,
+          name: request.name,
+          address: request.address,
+          latitude: request.latitude / 1e6,
+          longitude: request.longitude / 1e6,
+          sports: request.sports,
+          image: request.image,
+          description: request.description,
+          status: request.status,
+          approvedVenueId: request.approvedVenueId,
+          createdAt: request.createdAt.toISOString(),
+          reviewedAt: request.reviewedAt ? request.reviewedAt.toISOString() : null,
+        }) as VenueRequest,
+    );
 }
 export function getProfile(db: Db, id: string): Profile {
   const record = requireValue(db.select().from(user).where(eq(user.id, id)).get());

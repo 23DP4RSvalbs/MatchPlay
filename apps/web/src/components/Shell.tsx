@@ -1,6 +1,8 @@
-import { Compass, Trophy, UsersRound, UserRound, MapPin, ArrowUpRight } from 'lucide-react';
+import { Compass, Trophy, UsersRound, UserRound, MapPin, ArrowUpRight, ShieldAlert } from 'lucide-react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { useMe } from '../lib/api';
+import { useQuery } from '@tanstack/react-query';
+import type { VenueRequest } from '@matchplay/shared/game';
+import { api, useMe } from '../lib/api';
 import { usePublicStream } from '../lib/useStream';
 import { useReveals } from '../lib/useReveals';
 import { Avatar } from './ui';
@@ -16,6 +18,13 @@ export function Shell() {
   const motionRef = useReveals();
   const me = useMe();
   const { pathname } = useLocation();
+  const pendingRequests = useQuery({
+    queryKey: ['admin', 'venue-requests', 'pending'],
+    queryFn: () => api<VenueRequest[]>('/admin/venue-requests'),
+    enabled: me.data?.role === 'admin',
+    retry: false,
+  });
+  const activeRequestCount = (pendingRequests.data ?? []).filter((request) => request.status === 'pending').length;
   const activeClass = (to: string, isActive: boolean) =>
     isActive || (to === '/' && pathname.startsWith('/venues/')) ? 'active' : '';
   return (
@@ -41,6 +50,13 @@ export function Shell() {
               {label}
             </NavLink>
           ))}
+          {me.data?.role === 'admin' && (
+            <NavLink to="/admin" className={({ isActive }) => activeClass('/admin', isActive)}>
+              <ShieldAlert size={19} />
+              Admin
+              {activeRequestCount > 0 && <span className="request-badge">{activeRequestCount}</span>}
+            </NavLink>
+          )}
         </nav>
         <div className="topbar-right">
           <span className="location">

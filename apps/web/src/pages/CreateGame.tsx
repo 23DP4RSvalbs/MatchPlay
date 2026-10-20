@@ -38,7 +38,11 @@ export default function CreateGame() {
     return sports.find((s) => s === requested) ?? null;
   });
   const [title, setTitle] = useState('');
-  const [startsAt, setStartsAt] = useState(() => rigaLocal(new Date(Date.now() + 7_200_000)));
+  const [startsAt, setStartsAt] = useState(() => {
+    const selectedSlot = params.get('slot');
+    if (selectedSlot) return new Date(selectedSlot).toISOString().slice(0, 16);
+    return rigaLocal(new Date(Date.now() + 7_200_000));
+  });
   const [capacity, setCapacity] = useState<number | null>(null);
   const [duration, setDuration] = useState(40);
   const [orangeName, setOrangeName] = useState('Team Orange');

@@ -67,10 +67,13 @@ export async function createApp(
       .code(code)
       .send({ message: code >= 500 ? 'Something went wrong. Please try again.' : failure.message });
   });
-  app.addHook('onRequest', async (request) => {
+  app.addHook('onRequest', async (request, reply) => {
+    const requestId = request.id;
+    request.log.info({ requestId, path: request.raw.url, method: request.method }, 'request received');
     const origin = request.headers.origin;
     if (origin && origin !== appUrl)
       throw new AppError(403, 'This request came from an untrusted origin.');
+    reply.header('x-request-id', requestId);
   });
   async function currentUser(request: FastifyRequest) {
     const result = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
@@ -110,7 +113,23 @@ export async function createApp(
   }
   const idFrom = (request: FastifyRequest) =>
     z.object({ id: z.string().min(1) }).parse(request.params).id;
-  app.get('/api/health', async () => ({ status: 'ok', branch: 'Roberts' }));
+  app.get('/api/health', async (request) => {
+    try {
+      const dbHealthy = db.select().from(user).limit(1).get();
+      const authHealthy = !!appUrl;
+      return {
+        status: 'ok',
+        branch: 'Roberts',
+        service: 'matchplay-api',
+        database: dbHealthy ? 'healthy' : 'unhealthy',
+        auth: authHealthy ? 'healthy' : 'unavailable',
+        requestId: request.id,
+      };
+    } catch (error) {
+      request.log.error({ err: error }, 'health check failed');
+      throw new AppError(503, 'Database is unavailable.');
+    }
+  });
   app.get('/api/events', { websocket: true }, (socket) => {
     publicSubscribers.add(socket);
     socket.send(JSON.stringify({ type: 'connected' }));
@@ -194,15 +213,16 @@ export async function createApp(
     const input = venueSchema.parse(request.body);
     const id = randomUUID();
     const now = new Date();
-    db.insert(venueRequests)
-      .values({
-        ...input,
-        id,
-        latitude: Math.round(input.latitude * 1e6),
-        longitude: Math.round(input.longitude * 1e6),
-        createdAt: now,
-      })
-      .run();
+    const record = {
+      ...input,
+      id,
+      latitude: Math.round(input.latitude * 1e6),
+      longitude: Math.round(input.longitude * 1e6),
+      createdAt: now,
+      reviewedAt: null,
+      approvedVenueId: null,
+    } as unknown as typeof venueRequests.$inferInsert;
+    db.insert(venueRequests).values(record).run();
     return reply.code(201).send(requireValue(getVenueRequests(db).find((v) => v.id === id)));
   });
   app.get('/api/matches', async (request) => {
@@ -642,6 +662,48 @@ export async function createApp(
         .run();
     }
     return requireValue(getVenueRequests(db).find((v) => v.id === id));
+  });
+  app.get('/api/venues/:id/availability', async (request) => {
+    const id = idFrom(request);
+    const venue = requireValue(db.select().from(venues).where(eq(venues.id, id)).get(), 'Venue not found.');
+    const games = matchSummaries(db).filter((match) => match.venueId === id && match.status !== 'cancelled');
+    const now = Date.now();
+    const nextSevenDays = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(now + index * 86_400_000);
+      const start = new Date(day);
+      start.setHours(9, 0, 0, 0);
+      const end = new Date(day);
+      end.setHours(21, 0, 0, 0);
+      return [start, end] as const;
+    });
+
+    return {
+      venueId: venue.id,
+      venueName: venue.name,
+      slots: nextSevenDays.flatMap(([slotStart, slotEnd], dayIndex) => {
+        const labels = Array.from({ length: 6 }, (_, slotIndex) => {
+          const start = new Date(slotStart.getTime() + slotIndex * 60 * 60 * 1000);
+          const end = new Date(start.getTime() + 60 * 60 * 1000);
+          const isBooked = games.some((game) => {
+            const gameStart = Date.parse(game.startsAt);
+            return gameStart >= start.getTime() && gameStart < end.getTime();
+          });
+          return {
+            start: start.toISOString(),
+            end: end.toISOString(),
+            label: `${new Date(start).toLocaleDateString('en-GB', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            })} · ${new Date(start).toLocaleTimeString('en-GB', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`,
+            available: !isBooked && start.getTime() > now + dayIndex * 86_400_000,
+          };
+        });
+      }),
+    };
   });
   app.addHook('onClose', () => {
     for (const socket of publicSubscribers) socket.close();

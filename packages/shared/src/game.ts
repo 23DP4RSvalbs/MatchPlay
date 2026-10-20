@@ -96,6 +96,17 @@ export interface Profile {
   venuesVisited: number;
   matches: MatchSummary[];
 }
+export interface VenueAvailabilitySlot {
+  start: string;
+  end: string;
+  label: string;
+  available: boolean;
+}
+export interface VenueAvailability {
+  venueId: string;
+  venueName: string;
+  slots: VenueAvailabilitySlot[];
+}
 
 export const emptyTennis = (): TennisState => ({
   points: [0, 0],

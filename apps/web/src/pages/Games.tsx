@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, KeyRound, ArrowRight } from 'lucide-react';
@@ -12,10 +12,18 @@ const tabs = [
   ['completed', 'History'],
   ['mine', 'My games'],
 ] as const;
+const sports = ['Basketball', 'Football', 'Volleyball', 'Tennis'] as const;
+const sortOptions = [
+  { value: 'soonest', label: 'Soonest' },
+  { value: 'latest', label: 'Latest' },
+  { value: 'sport', label: 'Sport' },
+] as const;
 export default function Games() {
   const [tab, setTab] = useState('lobby');
   const [joining, setJoining] = useState(false);
   const [code, setCode] = useState('');
+  const [sortBy, setSortBy] = useState<'soonest' | 'latest' | 'sport'>('soonest');
+  const [sportFilter, setSportFilter] = useState<'all' | 'Basketball' | 'Football' | 'Volleyball' | 'Tennis'>('all');
   const me = useMe();
   const navigate = useNavigate();
   const games = useQuery({
@@ -29,6 +37,14 @@ export default function Games() {
     const result = await join.mutateAsync(code).catch(() => null);
     if (result) navigate(`/games/${result.id}`);
   }
+  const sortedGames = useMemo(() => {
+    const items = (games.data ?? []).filter((game) => sportFilter === 'all' || game.sport === sportFilter);
+    return items.sort((a, b) => {
+      if (sortBy === 'latest') return b.startsAt.localeCompare(a.startsAt);
+      if (sortBy === 'sport') return a.sport.localeCompare(b.sport) || a.startsAt.localeCompare(b.startsAt);
+      return a.startsAt.localeCompare(b.startsAt);
+    });
+  }, [games.data, sortBy, sportFilter]);
   return (
     <div className="page games-page">
       <PageTitle
@@ -62,19 +78,48 @@ export default function Games() {
           Join with code
         </button>
       </div>
+      <div className="games-filters">
+        <div className="sort-by">
+          <span>Sort by:</span>
+          {sortOptions.map((option) => (
+            <button
+              key={option.value}
+              className={sortBy === option.value ? 'active' : ''}
+              onClick={() => setSortBy(option.value)}
+              aria-pressed={sortBy === option.value}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="sport-filter">
+          <span>Sport:</span>
+          <button
+            className={sportFilter === 'all' ? 'active' : ''}
+            onClick={() => setSportFilter('all')}
+            aria-pressed={sportFilter === 'all'}
+          >
+            All
+          </button>
+          {sports.map((sport) => (
+            <button
+              key={sport}
+              className={sportFilter === sport ? 'active' : ''}
+              onClick={() => setSportFilter(sport)}
+              aria-pressed={sportFilter === sport}
+            >
+              {sport}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="game-grid">
         {games.isPending ? (
           <Skeleton />
         ) : games.error ? (
           <Failure error={games.error} retry={() => void games.refetch()} />
-        ) : games.data.length ? (
-          [...games.data]
-            .sort((a, b) =>
-              tab === 'completed'
-                ? b.startsAt.localeCompare(a.startsAt)
-                : a.startsAt.localeCompare(b.startsAt),
-            )
-            .map((game) => <GameCard key={game.id} game={game} />)
+        ) : sortedGames.length ? (
+          sortedGames.map((game) => <GameCard key={game.id} game={game} />)
         ) : (
           <Empty title="Room for a new game" text="Choose a venue and invite your team.">
             <Link to="/games/new" className="button primary">
