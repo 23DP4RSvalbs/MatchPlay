@@ -101,7 +101,10 @@ export const venueRequests = sqliteTable(
     sports: text('sports', { mode: 'json' }).$type<Sport[]>().notNull(),
     image: text('image').notNull(),
     description: text('description').notNull().default(''),
-    status: text('status').$type<'pending' | 'approved' | 'rejected'>().notNull().default('pending'),
+    status: text('status')
+      .$type<'pending' | 'approved' | 'rejected'>()
+      .notNull()
+      .default('pending'),
     createdAt: date('created_at'),
     reviewedAt: integer('reviewed_at', { mode: 'timestamp_ms' }),
     approvedVenueId: text('approved_venue_id').references(() => venues.id),
