@@ -38,19 +38,31 @@ export default function PlaceMap({ center, value, onChange, className = '' }: Pr
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const data = useRef(toGeoJSON(value));
+  const initialCenter = useRef(center);
+  const change = useRef(onChange);
+  const [longitude, latitude] = value;
 
   useEffect(() => {
-    data.current = toGeoJSON(value);
+    change.current = onChange;
+    if (map.current) map.current.getCanvas().style.cursor = onChange ? 'crosshair' : '';
+  }, [onChange]);
+
+  useEffect(() => {
+    data.current = toGeoJSON([longitude, latitude]);
     (map.current?.getSource('place') as GeoJSONSource | undefined)?.setData(data.current);
-    if (ready) map.current?.easeTo({ center: value, duration: 300 });
-  }, [value, ready]);
+    if (ready)
+      map.current?.easeTo({
+        center: [longitude, latitude],
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 300,
+      });
+  }, [longitude, latitude, ready]);
 
   useEffect(() => {
     if (!container.current) return;
     const instance = new LibreMap({
       container: container.current,
       style: '/map/style.json',
-      center,
+      center: initialCenter.current,
       zoom: 14.2,
       minZoom: 6,
       maxZoom: 18,
@@ -86,24 +98,10 @@ export default function PlaceMap({ center, value, onChange, className = '' }: Pr
           'circle-stroke-width': 3,
         },
       });
-      instance.addLayer({
-        id: 'place-label',
-        type: 'symbol',
-        source: 'place',
-        layout: {
-          'text-field': '📍',
-          'text-size': 18,
-          'text-allow-overlap': true,
-        },
-        paint: { 'text-color': '#FFFFFF' },
+      instance.on('click', (event: MapMouseEvent) => {
+        change.current?.([event.lngLat.lng, event.lngLat.lat]);
       });
-      if (onChange) {
-        instance.on('click', (event: MapMouseEvent) => {
-          const next: Point = [event.lngLat.lng, event.lngLat.lat];
-          onChange(next);
-        });
-        instance.getCanvas().style.cursor = 'crosshair';
-      }
+      instance.getCanvas().style.cursor = change.current ? 'crosshair' : '';
       setReady(true);
     });
     instance.on('error', (event) => {
@@ -122,7 +120,9 @@ export default function PlaceMap({ center, value, onChange, className = '' }: Pr
       <div
         ref={container}
         className="place-map-canvas"
-        aria-label={onChange ? 'Map for choosing a venue location' : 'Map preview of a venue location'}
+        aria-label={
+          onChange ? 'Map for choosing a venue location' : 'Map preview of a venue location'
+        }
       />
       {!ready && (
         <div className="map-loading">
@@ -133,7 +133,9 @@ export default function PlaceMap({ center, value, onChange, className = '' }: Pr
       {failed && (
         <div className="map-error" role="status">
           Map connection interrupted. You can still use the form.
-          <button onClick={() => window.location.reload()}>Retry</button>
+          <button type="button" onClick={() => window.location.reload()}>
+            Retry
+          </button>
         </div>
       )}
     </div>

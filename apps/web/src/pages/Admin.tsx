@@ -299,7 +299,9 @@ export default function Admin() {
               >
                 <img src={request.image} alt="" loading="lazy" />
                 <div className="admin-venue-copy">
-                  <span className={`status ${request.status === 'pending' ? 'lobby' : 'completed'}`}>
+                  <span
+                    className={`status ${request.status === 'pending' ? 'lobby' : 'completed'}`}
+                  >
                     {request.status.toUpperCase()}
                   </span>
                   <h2>{request.name}</h2>
@@ -308,7 +310,9 @@ export default function Admin() {
                     {request.address}
                   </p>
                   <div className="admin-sports">{request.sports.join(' · ')}</div>
-                  {request.description && <p className="admin-request-description">{request.description}</p>}
+                  {request.description && (
+                    <p className="admin-request-description">{request.description}</p>
+                  )}
                   {request.status === 'pending' && (
                     <div className="admin-record-actions">
                       <Button
@@ -343,7 +347,8 @@ export default function Admin() {
       {!filteredUsers.length && tab === 'users' && <p className="muted">No matching users.</p>}
       {!requests.data.filter((request) =>
         `${request.name} ${request.address}`.toLowerCase().includes(search.toLowerCase()),
-      ).length && tab === 'requests' && <p className="muted">No matching venue requests.</p>}
+      ).length &&
+        tab === 'requests' && <p className="muted">No matching venue requests.</p>}
       {editing !== undefined && (
         <VenueEditor venue={editing} onClose={() => setEditing(undefined)} />
       )}

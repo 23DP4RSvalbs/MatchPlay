@@ -40,7 +40,8 @@ const escapeHtml = (value: string) =>
   value.replace(
     /[&<>'"]/g,
     (character) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ?? character,
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] ??
+      character,
   );
 export default function VenueMap({ venues, selected, origin, onSelect, onBounds }: Props) {
   const container = useRef<HTMLDivElement>(null);

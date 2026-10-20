@@ -1,4 +1,4 @@
-import type { CreateMatchInput, VenueInput } from './validation';
+import type { VenueInput } from './validation';
 
 export const sports = ['Basketball', 'Football', 'Volleyball', 'Tennis'] as const;
 export type Sport = (typeof sports)[number];
