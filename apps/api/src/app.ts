@@ -108,6 +108,41 @@ export async function createApp(
     if (match.hostId !== me.id) throw new AppError(403, 'Only the organiser can do this.');
     return match;
   }
+  function setFirstCaptain(
+    tx: typeof db,
+    matchId: string,
+    side: 'orange' | 'blue',
+    userId: string,
+  ) {
+    const hasCaptain = tx
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.matchId, matchId), eq(memberships.side, side), eq(memberships.captain, true)))
+      .get();
+    if (!hasCaptain)
+      tx.update(memberships)
+        .set({ captain: true })
+        .where(and(eq(memberships.matchId, matchId), eq(memberships.userId, userId)))
+        .run();
+  }
+  function ensureTeamCaptain(tx: typeof db, matchId: string, side: 'orange' | 'blue') {
+    const nextCaptain = tx
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.matchId, matchId), eq(memberships.side, side)))
+      .orderBy(sql`rowid`)
+      .get();
+    if (nextCaptain) {
+      tx.update(memberships)
+        .set({ captain: false })
+        .where(and(eq(memberships.matchId, matchId), eq(memberships.side, side)))
+        .run();
+      tx.update(memberships)
+        .set({ captain: true })
+        .where(and(eq(memberships.matchId, matchId), eq(memberships.userId, nextCaptain.userId)))
+        .run();
+    }
+  }
   const idFrom = (request: FastifyRequest) =>
     z.object({ id: z.string().min(1) }).parse(request.params).id;
   app.get('/api/health', async () => ({ status: 'ok', branch: 'Roberts' }));
@@ -258,7 +293,7 @@ export async function createApp(
     const { code } = z.object({ code: z.string().trim().min(4).max(12) }).parse(request.body);
     const match = requireValue(
       db.select().from(matches).where(eq(matches.code, code.toUpperCase())).get(),
-      'That game code was not found.',
+      'That game code was not found.'
     );
     if (match.status !== 'lobby')
       throw new AppError(409, 'This game is no longer accepting players.');
@@ -281,6 +316,17 @@ export async function createApp(
       if (count >= match.capacity)
         throw new AppError(409, 'This team is full. Try the other team.');
       tx.insert(memberships).values({ matchId: id, userId: me.id, side, captain: false }).run();
+      const captainExists = tx
+        .select()
+        .from(memberships)
+        .where(and(eq(memberships.matchId, id), eq(memberships.side, side), eq(memberships.captain, true)))
+        .get();
+      if (!captainExists) {
+        tx.update(memberships)
+          .set({ captain: true })
+          .where(and(eq(memberships.matchId, id), eq(memberships.userId, me.id)))
+          .run();
+      }
       bumpVersion(db, id);
     });
     broadcast(id);
@@ -295,9 +341,29 @@ export async function createApp(
     if (match.hostId === me.id)
       throw new AppError(409, 'The organiser stays in the game. Use Cancel game to close it.');
     db.transaction((tx) => {
+      const member = membership(db, id, me.id);
+      if (!member) return;
       tx.delete(memberships)
         .where(and(eq(memberships.matchId, id), eq(memberships.userId, me.id)))
         .run();
+      if (member.captain) {
+        const remaining = tx
+          .select()
+          .from(memberships)
+          .where(and(eq(memberships.matchId, id), eq(memberships.side, member.side)))
+          .orderBy(sql`rowid`)
+          .get();
+        if (remaining) {
+          tx.update(memberships)
+            .set({ captain: false })
+            .where(and(eq(memberships.matchId, id), eq(memberships.side, member.side)))
+            .run();
+          tx.update(memberships)
+            .set({ captain: true })
+            .where(and(eq(memberships.matchId, id), eq(memberships.userId, remaining.userId)))
+            .run();
+        }
+      }
       bumpVersion(db, id);
     });
     broadcast(id);
@@ -320,7 +386,7 @@ export async function createApp(
         .all().length;
       if (count >= match.capacity) throw new AppError(409, 'That team is full.');
       tx.update(memberships)
-        .set({ side: input.side, captain: false })
+        .set({ side: input.side, captain: member.captain })
         .where(and(eq(memberships.matchId, id), eq(memberships.userId, input.userId)))
         .run();
       bumpVersion(db, id);
@@ -331,11 +397,13 @@ export async function createApp(
   app.post('/api/matches/:id/captain', async (request) => {
     const me = await currentUser(request);
     const id = idFrom(request);
-    const match = hostGame(id, me);
+    const match = getMatch(db, id);
     if (match.status === 'completed' || match.status === 'cancelled')
       throw new AppError(409, 'This game has ended.');
     const { userId } = z.object({ userId: z.string() }).parse(request.body);
     const member = requireValue(membership(db, id, userId), 'Player not found.');
+    if (match.hostId !== me.id && membership(db, id, me.id)?.side !== member.side)
+      throw new AppError(403, 'Only the organiser or the same team leader can reassign captaincy.');
     db.transaction((tx) => {
       tx.update(memberships)
         .set({ captain: false })

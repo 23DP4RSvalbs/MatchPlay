@@ -30,6 +30,9 @@ function MatchRoom({ match, meId }: { match: MatchType; meId: string }) {
   const [copied, setCopied] = useState(false);
   const self = match.members.find((m) => m.userId === meId);
   const host = match.hostId === meId;
+  const teamCaptain = !!self?.captain && !!self.side;
+  const canManageMember = (member: Member) => host || (teamCaptain && self.side === member.side);
+  const canAssignCaptain = (member: Member) => host || (teamCaptain && self.side === member.side);
   const toast = useToast();
   const stream = useStream(match.id, !!self || host);
   const action = useAction(({ path, body }: { path: string; body: unknown }) =>
@@ -238,7 +241,7 @@ function MatchRoom({ match, meId }: { match: MatchType; meId: string }) {
                           {member.userId === match.hostId && <small> (Host)</small>}
                           {member.captain && <Crown size={13} aria-label="Captain" />}
                         </span>
-                        {host && match.status !== 'completed' && match.status !== 'cancelled' && (
+                        {canManageMember(member) && match.status !== 'completed' && match.status !== 'cancelled' && (
                           <button
                             aria-label={`Manage ${member.name}`}
                             onClick={() => setManaging(member)}
